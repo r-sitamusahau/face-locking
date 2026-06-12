@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Locking — Vision Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-950: #060d1a;
+            --navy-900: #0a1628;
+            --navy-850: #0f1f38;
+            --navy-800: #132744;
+            --navy-700: #1a3358;
+            --navy-600: #234770;
+            --accent: #4d8bf5;
+            --accent-soft: rgba(77, 139, 245, 0.15);
+            --accent-glow: rgba(77, 139, 245, 0.35);
+            --text: #eef3fb;
+            --text-muted: #94a8c9;
+            --text-dim: #647896;
+            --border: rgba(148, 168, 201, 0.12);
+            --border-strong: rgba(77, 139, 245, 0.35);
+            --success: #34c759;
+            --success-bg: rgba(52, 199, 89, 0.12);
+            --warning: #f5a623;
+            --warning-bg: rgba(245, 166, 35, 0.12);
+            --danger: #ff5c7a;
+            --danger-bg: rgba(255, 92, 122, 0.12);
+            --radius: 14px;
+            --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--navy-950);
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 50% -10%, rgba(77, 139, 245, 0.12), transparent),
+                radial-gradient(ellipse 60% 40% at 100% 100%, rgba(26, 51, 88, 0.6), transparent),
+                linear-gradient(180deg, var(--navy-900) 0%, var(--navy-950) 100%);
+            z-index: -1;
+        }
+
+        /* Header */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            height: 64px;
+            background: rgba(10, 22, 40, 0.85);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), #2d5aa8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .brand-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .brand-text h1 {
+            margin: 0;
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-text span {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        .topbar-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .live-clock {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Layout */
+        .main {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1.75rem 2rem 2.5rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 280px;
+            grid-template-rows: auto auto;
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 1024px) {
+            .grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .sidebar {
+                grid-column: 1 / -1;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1.25rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .topbar {
+                padding: 0 1rem;
+            }
+
+            .main {
+                padding: 1rem;
+            }
+
+            .grid,
+            .sidebar {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: linear-gradient(160deg, var(--navy-850) 0%, var(--navy-900) 100%);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        /* Face panel */
+        .face-panel {
+            grid-row: span 2;
+        }
+
+        .face-frame {
+            position: relative;
+            min-height: 280px;
+            border-radius: 10px;
+            background: var(--navy-950);
+            border: 1px dashed var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .face-frame.has-image {
+            border-style: solid;
+            border-color: var(--border-strong);
+        }
+
+        #face-image {
+            max-width: 100%;
+            max-height: 320px;
+            object-fit: contain;
+            display: none;
+            border-radius: 8px;
+        }
+
+        .face-placeholder {
+            text-align: center;
+            color: var(--text-dim);
+        }
+
+        .face-placeholder svg {
+            width: 48px;
+            height: 48px;
+            opacity: 0.35;
+            margin-bottom: 10px;
+        }
+
+        .face-placeholder p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+
+        /* Tracking */
+        .status-display {
+            text-align: center;
+            padding: 0.5rem 0 1rem;
+        }
+
+        #movement-status {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--accent);
+            transition: color 0.25s ease;
+        }
+
+        .status-sub {
+            margin-top: 0.75rem;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+        }
+
+        .badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border: 1px solid transparent;
+        }
+
+        .badge-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .badge-locked {
+            background: var(--success-bg);
+            color: var(--success);
+            border-color: rgba(52, 199, 89, 0.3);
+        }
+
+        .badge-search {
+            background: var(--warning-bg);
+            color: var(--warning);
+            border-color: rgba(245, 166, 35, 0.3);
+        }
+
+        .badge-connected {
+            background: var(--success-bg);
+            color: var(--success);
+            border-color: rgba(52, 199, 89, 0.3);
+        }
+
+        .badge-disconnected {
+            background: var(--danger-bg);
+            color: var(--danger);
+            border-color: rgba(255, 92, 122, 0.3);
+        }
+
+        /* Offset bars */
+        .offset-panel {
+            margin-top: 1.25rem;
+        }
+
+        .offset-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .offset-label {
+            width: 28px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-align: center;
+        }
+
+        .offset-track {
+            flex: 1;
+            height: 8px;
+            background: var(--navy-950);
+            border-radius: 4px;
+            position: relative;
+            border: 1px solid var(--border);
+        }
+
+        .offset-center {
+            position: absolute;
+            left: 50%;
+            top: -2px;
+            bottom: -2px;
+            width: 2px;
+            background: var(--text-dim);
+            transform: translateX(-50%);
+            opacity: 0.5;
+        }
+
+        .offset-fill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--accent), #6ba3ff);
+            transition: left 0.15s ease, width 0.15s ease;
+        }
+
+        /* Stats sidebar */
+        .stat-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.85rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .stat-value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Log */
+        .log-panel {
+            grid-column: 1 / -1;
+        }
+
+        .log-scroll {
+            max-height: 180px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'SF Mono', monospace;
+            font-size: 0.78rem;
+        }
+
+        .log-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .log-scroll::-webkit-scrollbar-thumb {
+            background: var(--navy-600);
+            border-radius: 3px;
+        }
+
+        .log-entry {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(148, 168, 201, 0.06);
+            color: var(--text-muted);
+        }
+
+        .log-entry .log-time {
+            color: var(--accent);
+            margin-right: 8px;
+        }
+
+        .log-entry .log-msg {
+            color: var(--text-muted);
+        }
+
+        /* Pulse on update */
+        @keyframes statusPulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .status-pulse {
+            animation: statusPulse 0.4s ease;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/>
+                </svg>
+            </div>
+            <div class="brand-text">
+                <h1>Face Locking Vision Control</h1>
+                <span>BENAX Single-Speaker Tracking · Team rusi123</span>
+            </div>
+        </div>
+        <div class="topbar-meta">
+            <span class="live-clock" id="timestamp">--:--:--</span>
+            <span id="connection-status" class="badge badge-disconnected">
+                <span class="badge-dot"></span> Offline
+            </span>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="grid">
+
+            <!-- Face -->
+            <section class="card face-panel">
+                <div class="card-header">
+                    <h2>Target Face</h2>
+                    <span id="target-info" class="badge" style="background:var(--accent-soft);color:var(--accent);">Target: —</span>
+                </div>
+                <div class="card-body">
+                    <div class="face-frame" id="face-frame">
+                        <img id="face-image" src="" alt="Enrolled target face" />
+                        <div class="face-placeholder" id="no-face-msg">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                            <p>Waiting for target lock…</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tracking -->
+            <section class="card">
+                <div class="card-header">
+                    <h2>Tracking Status</h2>
+                    <span id="lock-status" class="badge badge-search">
+                        <span class="badge-dot"></span> Searching
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="status-display" id="status-card">
+                        <div id="movement-status">SCAN</div>
+                        <div class="status-sub" id="confidence">Confidence —</div>
+                    </div>
+
+                    <div class="offset-panel">
+                        <div class="offset-row">
+                            <span class="offset-label">H</span>
+                            <div class="offset-track">
+                                <div class="offset-center"></div>
+                                <div class="offset-fill" id="offset-x-bar" style="left:50%;width:0;"></div>
+                            </div>
+                        </div>
+                        <div class="offset-row">
+                            <span class="offset-label">V</span>
+                            <div class="offset-track">
+                                <div class="offset-center"></div>
+                                <div class="offset-fill" id="offset-y-bar" style="left:50%;width:0;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sidebar stats -->
+            <aside class="sidebar">
+                <section class="card">
+                    <div class="card-header"><h2>System</h2></div>
+                    <div class="card-body">
+                        <ul class="stat-list">
+                            <li class="stat-item">
+                                <span class="stat-label">Mode</span>
+                                <span class="stat-value" id="stat-mode">Search</span>
+                            </li>
+                            <li class="stat-item">
+                                <span class="stat-label">Motor</span>
+                                <span class="stat-value" id="stat-motor">Sweeping</span>
+                            </li>
+                            <li class="stat-item">
+                                <span class="stat-label">Offset X</span>
+                                <span class="stat-value" id="stat-offset-x">0.00</span>
+                            </li>
+                            <li class="stat-item">
+                                <span class="stat-label">Offset Y</span>
+                                <span class="stat-value" id="stat-offset-y">0.00</span>
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+            </aside>
+
+            <!-- Log -->
+            <section class="card log-panel">
+                <div class="card-header"><h2>Event Log</h2></div>
+                <div class="card-body log-scroll" id="logs"></div>
+            </section>
+        </div>
+    </main>
+
+    <footer>Face Locking · Distributed Vision &amp; Servo Control · MQTT Port 1884</footer>
+
+    <script>
+        const wsUrl = `ws://${window.location.hostname || '127.0.0.1'}:9002`;
+        let ws;
+
+        const statusEl = document.getElementById('movement-status');
+        const statusCard = document.getElementById('status-card');
+        const connEl = document.getElementById('connection-status');
+        const timeEl = document.getElementById('timestamp');
+        const confEl = document.getElementById('confidence');
+        const logsEl = document.getElementById('logs');
+        const targetEl = document.getElementById('target-info');
+        const lockEl = document.getElementById('lock-status');
+        const faceImageEl = document.getElementById('face-image');
+        const noFaceMsgEl = document.getElementById('no-face-msg');
+        const faceFrame = document.getElementById('face-frame');
+        const offsetXBar = document.getElementById('offset-x-bar');
+        const offsetYBar = document.getElementById('offset-y-bar');
+        const statMode = document.getElementById('stat-mode');
+        const statMotor = document.getElementById('stat-motor');
+        const statOffsetX = document.getElementById('stat-offset-x');
+        const statOffsetY = document.getElementById('stat-offset-y');
+
+        const STATUS_COLORS = {
+            MOVED_LEFT: '#ff5c7a',
+            MOVED_RIGHT: '#4d8bf5',
+            CENTERED: '#34c759',
+            STOPPED: '#94a8c9',
+            SCAN: '#647896',
+            OUT_OF_FRAME: '#f5a623',
+        };
+
+        function setOffsetBar(barEl, value) {
+            const v = Math.max(-1, Math.min(1, value || 0));
+            const pct = Math.abs(v) * 50;
+            if (v >= 0) {
+                barEl.style.left = '50%';
+                barEl.style.width = pct + '%';
+            } else {
+                barEl.style.left = (50 - pct) + '%';
+                barEl.style.width = pct + '%';
+            }
+        }
+
+        function formatStatus(status) {
+            return (status || '—').replace(/_/g, ' ');
+        }
+
+        function connect() {
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                connEl.innerHTML = '<span class="badge-dot"></span> Online';
+                connEl.className = 'badge badge-connected';
+                addLog('Connected to vision backend.');
+            };
+
+            ws.onclose = () => {
+                connEl.innerHTML = '<span class="badge-dot"></span> Offline';
+                connEl.className = 'badge badge-disconnected';
+                addLog('Connection lost. Reconnecting…');
+                setTimeout(connect, 3000);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'STATUS') {
+                        addLog(data.message);
+                        return;
+                    }
+                    if (data.status) updateDashboard(data);
+                } catch (e) {
+                    console.log('Non-JSON:', event.data);
+                }
+            };
+        }
+
+        function updateDashboard(data) {
+            const status = data.status || '—';
+            statusEl.textContent = formatStatus(status);
+            statusEl.style.color = STATUS_COLORS[status] || '#4d8bf5';
+
+            statusCard.classList.remove('status-pulse');
+            void statusCard.offsetWidth;
+            statusCard.classList.add('status-pulse');
+
+            if (data.target) {
+                targetEl.textContent = `Target: ${data.target}`;
+            }
+
+            if (data.face_image) {
+                faceImageEl.src = 'data:image/jpeg;base64,' + data.face_image;
+                faceImageEl.style.display = 'block';
+                noFaceMsgEl.style.display = 'none';
+                faceFrame.classList.add('has-image');
+            } else if (!data.locked) {
+                faceImageEl.style.display = 'none';
+                noFaceMsgEl.style.display = 'block';
+                faceFrame.classList.remove('has-image');
+            }
+
+            const searching = data.searching || status === 'SCAN' || status === 'OUT_OF_FRAME';
+
+            if (data.locked && !searching) {
+                lockEl.innerHTML = '<span class="badge-dot"></span> Locked';
+                lockEl.className = 'badge badge-locked';
+                statMode.textContent = 'Track';
+                statMotor.textContent = status === 'CENTERED' || status === 'STOPPED' ? 'Hold' : 'Following';
+            } else {
+                lockEl.innerHTML = '<span class="badge-dot"></span> Searching';
+                lockEl.className = 'badge badge-search';
+                statMode.textContent = 'Search';
+                statMotor.textContent = 'Sweeping';
+            }
+
+            const conf = data.confidence;
+            confEl.textContent = conf != null ? `Confidence ${(conf * 100).toFixed(1)}%` : 'Confidence —';
+
+            const ox = data.offset_x ?? 0;
+            const oy = data.offset_y ?? 0;
+            setOffsetBar(offsetXBar, ox);
+            setOffsetBar(offsetYBar, oy);
+            statOffsetX.textContent = ox.toFixed(2);
+            statOffsetY.textContent = oy.toFixed(2);
+
+            timeEl.textContent = new Date().toLocaleTimeString();
+            addLog(`${formatStatus(status)}${data.target ? ' · ' + data.target : ''}`);
+        }
+
+        function addLog(msg) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">${new Date().toLocaleTimeString()}</span><span class="log-msg">${msg}</span>`;
+            logsEl.insertBefore(entry, logsEl.firstChild);
+            while (logsEl.children.length > 80) {
+                logsEl.removeChild(logsEl.lastChild);
+            }
+        }
+
+        setInterval(() => {
+            timeEl.textContent = new Date().toLocaleTimeString();
+        }, 1000);
+
+        connect();
+    </script>
+</body>
+
+</html>
